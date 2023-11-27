@@ -104,6 +104,35 @@ router.put('/tasks/:taskId', authenticateUser, checkUserRole('HRAdmin'), async (
   }
 });
 
+router.post('/acknowledge/:taskId', authenticateUser, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.userId;
+
+    // Find the task by ID
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Check if the user has already acknowledged this task
+    if (task.acknowledgedBy.includes(userId)) {
+      return res.status(400).json({ error: 'Task already acknowledged by this user' });
+    }
+
+    // Add the user to the list of acknowledgers
+    task.acknowledgedBy.push(userId);
+
+    // Save the updated task
+    await task.save();
+
+    res.status(200).json({ success: true, message: 'Task acknowledged successfully' });
+  } catch (error) {
+    console.error('Error acknowledging task:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 // Delete a task
 router.delete('/tasks/:taskId', authenticateUser, checkUserRole('HRAdmin'),async (req, res) => {
   // Implement logic to delete a task

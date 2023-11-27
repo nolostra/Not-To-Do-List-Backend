@@ -71,7 +71,7 @@ router.post('/login', async (req, res) => {
     }
     console.log("jwtoken",process.env.JWT_SECRET)
     // If credentials are valid, create a token for authentication
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '10m' });
+    const token = jwt.sign({ userId: user._id, userType: user.role }, process.env.JWT_SECRET, { expiresIn: '10h' });
 
     // Respond with the token
     res.status(200).json({ token });
@@ -80,6 +80,7 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 // Profile (protected route)
 router.get('/profile', authenticateUser, async (req, res) => {

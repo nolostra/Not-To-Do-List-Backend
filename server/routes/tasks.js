@@ -2,14 +2,15 @@ const express = require('express');
 const router = express.Router();
 const { authenticateUser, checkUserRole } = require('../middleware');
 const Task = require('../models/Task');
-
+const jwt = require('jsonwebtoken');
+require('dotenv-flow').config();
 // Get all tasks
 router.get('/tasks', authenticateUser, async (req, res) => {
   // Implement logic to get all tasks
   try {
     // Implement logic to get all tasks
     const tasks = await Task.find();
-    res.json(tasks);
+    res.json({"data":tasks});
   } catch (error) {
     console.error('Error fetching tasks:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -62,20 +63,23 @@ router.put('/tasks/:taskId', authenticateUser, checkUserRole('HRAdmin'), async (
   // Implement logic to update a task
   const { taskId } = req.params;
   const { title, description, priority, dueDate } = req.body;
-
+  console.log("request body =>", req.body)
   try {
     // Validate required fields in the request body
     if (!title || !description) {
+      console.log("title, description")
       return res.status(400).json({ error: 'Title and description are required fields.' });
     }
 
     // Validate priority against enum values
     if (priority && !['low', 'medium', 'high'].includes(priority)) {
+      console.log("priority")
       return res.status(400).json({ error: 'Invalid priority value.' });
     }
 
     // Validate dueDate format (optional)
     if (dueDate && isNaN(Date.parse(dueDate))) {
+      console.log("dueDate")
       return res.status(400).json({ error: 'Invalid dueDate format.' });
     }
 
@@ -107,24 +111,29 @@ router.put('/tasks/:taskId', authenticateUser, checkUserRole('HRAdmin'), async (
 router.post('/acknowledge/:taskId', authenticateUser, async (req, res) => {
   try {
     const { taskId } = req.params;
-    const userId = req.user.userId;
+    const token = req.header('Authorization');
 
-    // Find the task by ID
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized: Missing token' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    }
+
     const task = await Task.findById(taskId);
 
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    // Check if the user has already acknowledged this task
-    if (task.acknowledgedBy.includes(userId)) {
+    if (task.acknowledgedBy.includes(decoded.userId)) {
       return res.status(400).json({ error: 'Task already acknowledged by this user' });
     }
 
-    // Add the user to the list of acknowledgers
-    task.acknowledgedBy.push(userId);
-
-    // Save the updated task
+    task.acknowledgedBy.push(decoded.userId);
     await task.save();
 
     res.status(200).json({ success: true, message: 'Task acknowledged successfully' });
@@ -133,6 +142,7 @@ router.post('/acknowledge/:taskId', authenticateUser, async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 // Delete a task
 router.delete('/tasks/:taskId', authenticateUser, checkUserRole('HRAdmin'),async (req, res) => {
   // Implement logic to delete a task

@@ -10,6 +10,7 @@ const authenticateUser = (req, res, next) => {
   }
 
   try {
+    // console.log("token =>", token)
     const decoded = jwt.verify(token, process.env.JWT_SECRET); // Replace 'your-secret-key' with your actual secret key
 
     // Add user information to the request for further route handling
